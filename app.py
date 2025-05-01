@@ -7,11 +7,11 @@ st.title("📚 Book Tracker")
 user = st.text_input("Your Name:")
 
 if user:
-    file_path = f"books_{user.lower().replace(' ', '_')}.csv"
+    DATA_FILE = f"books_{user.lower().replace(' ', '_')}.csv"
 
     # Load user-specific file
-    if os.path.exists(file_path):
-        df_books = pd.read_csv(file_path)
+    if os.path.exists(DATA_FILE):
+        df_books = pd.read_csv(DATA_FILE)
     else:
         df_books = pd.DataFrame(columns=["Title", "Author", "Rating /5", "Reread?", "Notes"])
 
@@ -38,7 +38,7 @@ if user:
                 "Notes": notes,
             }])
             df_books = pd.concat([df_books, new_entry], ignore_index=True)
-            df_books.to_csv(file_path, index=False)
+            df_books.to_csv(DATA_FILE, index=False)
             st.success(f"Added '{title}' to {user}'s list.")
 
     # --- Search Section ---
@@ -54,8 +54,15 @@ if user:
         if not df_books.empty:
             st.subheader(f"{user}'s Books")
             st.dataframe(df_books, use_container_width=True)
+            with open(DATA_FILE, "rb") as f:
+                st.download_button(
+                    label="📥 Download Book List as CSV",
+                    data=f,
+                    file_name=os.path.basename(DATA_FILE),
+                    mime="text/csv"
+                )
         else:
             st.info(f"No books added yet for {user}")
 
 else:
-    st.warning("Please enter your name to access your list.")
+    st.warning("Please enter your name to access or create your book list.")
