@@ -50,7 +50,7 @@ if user:
             set_with_dataframe(sheet, df_books)
             st.success(f"Added '{title}' to {user}'s list.")
 
-    user_books = df_books[df_books["User"] == user]
+    user_books = df_books[df_books["User"] == user].drop(columns=['User'])
     # --- Search Section ---
     search_query = st.text_input("Search books by title:")
 
