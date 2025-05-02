@@ -7,20 +7,35 @@ import os
 
 # --- Authenticate and connect to sheet ---
 @st.cache_resource
-def connect_to_gsheet():
+def connect_to_gsheets():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     credentials_dict = st.secrets["gcp_service_account"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
-    client = gspread.authorize(creds)
-    return client.open("book_tracker").worksheet("books")
+    gspread_client = gspread.authorize(creds)
+    return gspread_client
 
-# --- User selection ---
 st.title("📚 Book Tracker")
-user = st.text_input("Your Name:")
+user_email = st.text_input("Email Address:")
 
-if user:
-    sheet = connect_to_gsheet()
-    df_books = get_as_dataframe(sheet).dropna(how="all")
+if user_email:
+    sheet_name = f"book_tracker_{user_email.lower()}"
+
+    gspread_client = connect_to_gsheets()
+
+    # Try to open the sheet, or create it if it doesn't exist
+    try:
+        sh = gspread_client.open(sheet_name)
+    except gspread.SpreadsheetNotFound:
+        sh = gspread_client.create(sheet_name)
+        # Share with your email or keep private for service account
+        st.success(f'Google Spreadsheet "{sheet_name}" was created and shared with {user_email}')
+        sh.share(user_email, perm_type='user', role='writer')
+        # Create default worksheet
+        worksheet = sh.get_worksheet(0)
+        worksheet.update([["Title", "Author", "Rating /5", "Reread?", "Notes"]])
+
+    worksheet = sh.get_worksheet(0)
+    df_books = get_as_dataframe(worksheet).dropna(how="all")
 
 
     # Book input
@@ -44,31 +59,28 @@ if user:
                 "Rating /5": rating + 1 if rating is not None else None,
                 "Reread?": reread,
                 "Notes": notes,
-                "User": user,
             }])
             df_books = pd.concat([df_books, new_entry], ignore_index=True)
-            set_with_dataframe(sheet, df_books)
-            st.success(f"Added '{title}' to {user}'s list.")
+            set_with_dataframe(worksheet, df_books)
+            st.success(f"Added '{title}' to the book list for {user_email}.")
 
-    user_books = df_books[df_books["User"] == user].drop(columns=['User'])
-    # --- Search Section ---
     search_query = st.text_input("Search books by title:")
 
     # Filter DataFrame if search query exists
     if search_query:
-        filtered_books = user_books[
-            user_books["Title"].str.contains(search_query, case=False, na=False)
+        filtered_books = df_books[
+            df_books["Title"].str.contains(search_query, case=False, na=False)
         ]
         st.subheader(f"🔍 Search results for '{search_query}':")
         st.dataframe(filtered_books, use_container_width=True)
     else:
         # Display user's book list
         if not df_books.empty:
-            st.subheader(f"{user}'s Books")
+            st.subheader(f"My Books")
 
-            st.dataframe(user_books, use_container_width=True)
+            st.dataframe(df_books, use_container_width=True)
         else:
-            st.info(f"No books added yet for {user}")
+            st.info(f"No books added yet for {user_email}")
 
 else:
-    st.warning("Please enter your name to access or create your book list.")
+    st.warning("Please enter your email address to create or access your book tracker.")
