@@ -1,3 +1,5 @@
 *.json
 *.csv
 .streamlit/*
+.DS_Store
+.idea
