@@ -40,16 +40,17 @@ if user_email:
 
     # Book input
     with st.expander("📘 Add a New Book"):
-        title = st.text_input("Book Title:")
-        author = st.text_input("Book Author:")
-        st.write("Rating:")
-        rating = st.feedback('stars')
-        reread = st.radio("Would you reread it?", ["Yes", "No", "Maybe"])
-        notes = st.text_area("Notes")
+        with st.form("new_book_submit_form"):
+            title = st.text_input("Book Title:")
+            author = st.text_input("Book Author:")
+            st.write("Rating:")
+            rating = st.feedback('stars')
+            reread = st.radio("Would you reread it?", ["Yes", "No", "Maybe"])
+            notes = st.text_area("Notes")
 
-        submit = st.button("Add Book")
+            new_book_submitted = st.form_submit_button("Add Book")
 
-    if submit:
+    if new_book_submitted:
         if not title:
             st.error("Enter a book title before submitting")
         else:
@@ -62,6 +63,7 @@ if user_email:
             }])
             df_books = pd.concat([df_books, new_entry], ignore_index=True)
             set_with_dataframe(worksheet, df_books)
+            
             st.success(f"Added '{title}' to the book list for {user_email}.")
 
     heading_col, filter_col = st.columns([0.4, 0.6])
@@ -80,9 +82,9 @@ if user_email:
 
                     reread_filter = st.selectbox("Reread filter", ["All", "Yes", "No", "Maybe"])
 
-                filters_applied = st.form_submit_button("Apply Filters")
+                filters_submitted = st.form_submit_button("Apply Filters")
 
-    if filters_applied:
+    if filters_submitted:
         # Apply filters only after user submits
         filtered_books = df_books.copy()
 
