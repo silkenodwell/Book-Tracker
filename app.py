@@ -3,7 +3,7 @@ import pandas as pd
 import gspread
 from gspread_dataframe import set_with_dataframe, get_as_dataframe
 from oauth2client.service_account import ServiceAccountCredentials
-import os
+import time
 
 # --- Authenticate and connect to sheet ---
 @st.cache_resource
@@ -13,6 +13,13 @@ def connect_to_gsheets():
     creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
     gspread_client = gspread.authorize(creds)
     return gspread_client
+
+def show_success_message_for_short_time(success_message, s=3):
+    # Placeholder message to only show success message for short time
+    msg = st.empty()
+    msg.success(success_message)
+    time.sleep(2)
+    msg.empty()
 
 st.title("📚 Book Tracker")
 user_email = st.text_input("Email Address:")
@@ -63,8 +70,8 @@ if user_email:
             }])
             df_books = pd.concat([df_books, new_entry], ignore_index=True)
             set_with_dataframe(worksheet, df_books)
-            
-            st.success(f"Added '{title}' to the book list for {user_email}.")
+
+            show_success_message_for_short_time(f"Added '{title}' to the book list for {user_email}.")
 
     heading_col, filter_col = st.columns([0.4, 0.6])
     with heading_col:
