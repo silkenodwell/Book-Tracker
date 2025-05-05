@@ -64,20 +64,58 @@ if user_email:
             set_with_dataframe(worksheet, df_books)
             st.success(f"Added '{title}' to the book list for {user_email}.")
 
-    search_query = st.text_input("Search books by title:")
+    heading_col, filter_col = st.columns([0.4, 0.6])
+    with heading_col:
+        st.subheader('My Books')
+    with filter_col:
+        with st.expander("Filter Books"):
+            with st.form("filter_form"):
 
-    # Filter DataFrame if search query exists
-    if search_query:
-        filtered_books = df_books[
-            df_books["Title"].str.contains(search_query, case=False, na=False)
+                col1, col2 = st.columns(2)
+                with col1:
+                    search_field = st.selectbox("Search in", ["Title", "Author", "Title or Author"])
+                    min_rating = st.slider("Minimum rating", 1, 5, 1)
+                with col2:
+                    search_query = st.text_input("Keyword")
+
+                    reread_filter = st.selectbox("Reread filter", ["All", "Yes", "No", "Maybe"])
+
+                filters_applied = st.form_submit_button("Apply Filters")
+
+    if filters_applied:
+        # Apply filters only after user submits
+        filtered_books = df_books.copy()
+
+        # Keyword
+        if search_query:
+            if search_field == "Title":
+                filtered_books = filtered_books[
+                    filtered_books["Title"].str.contains(search_query, case=False, na=False)]
+            elif search_field == "Author":
+                filtered_books = filtered_books[
+                    filtered_books["Author"].str.contains(search_query, case=False, na=False)]
+            else:
+                mask = (
+                        filtered_books["Title"].str.contains(search_query, case=False, na=False) |
+                        filtered_books["Author"].str.contains(search_query, case=False, na=False)
+                )
+                filtered_books = filtered_books[mask]
+
+        # Rating
+        st.text(min_rating)
+        filtered_books = filtered_books[
+            (filtered_books["Rating /5"] >= min_rating) | filtered_books['Rating /5'].isna()
         ]
-        st.subheader(f"🔍 Search results for '{search_query}':")
-        st.dataframe(filtered_books, use_container_width=True)
+
+        # Reread
+        if reread_filter != "All":
+            filtered_books = filtered_books[filtered_books["Reread?"] == reread_filter]
+
+        st.dataframe(filtered_books)
+
     else:
         # Display user's book list
         if not df_books.empty:
-            st.subheader(f"My Books")
-
             st.dataframe(df_books, use_container_width=True)
         else:
             st.info(f"No books added yet for {user_email}")
