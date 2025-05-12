@@ -4,6 +4,9 @@ import gspread
 from gspread_dataframe import set_with_dataframe, get_as_dataframe
 from oauth2client.service_account import ServiceAccountCredentials
 import time
+from datetime import date, timedelta
+
+MIN_DATE = '2000-01-01'
 
 # --- Authenticate and connect to sheet ---
 @st.cache_resource
@@ -39,7 +42,7 @@ if user_email:
         sh.share(user_email, perm_type='user', role='writer')
         # Create default worksheet
         worksheet = sh.get_worksheet(0)
-        worksheet.update([["Title", "Author", "Rating /5", "Reread?", "Notes"]])
+        worksheet.update([["Title", "Author", "Rating /5", "Reread?", "Notes", "Date Read"]])
 
     worksheet = sh.get_worksheet(0)
     df_books = get_as_dataframe(worksheet).dropna(how="all")
@@ -50,6 +53,9 @@ if user_email:
         with st.form("new_book_submit_form"):
             title = st.text_input("Book Title:")
             author = st.text_input("Book Author:")
+            date_read = st.date_input(
+                "Date Read", value="today", min_value=MIN_DATE, max_value="today", key="date_read"
+            )
             st.write("Rating:")
             rating = st.feedback('stars')
             reread = st.radio("Would you reread it?", ["Yes", "No", "Maybe"])
@@ -67,6 +73,7 @@ if user_email:
                 "Rating /5": rating + 1 if rating is not None else None,
                 "Reread?": reread,
                 "Notes": notes,
+                "Date Read": date_read,
             }])
             df_books = pd.concat([df_books, new_entry], ignore_index=True)
             set_with_dataframe(worksheet, df_books)
@@ -86,9 +93,15 @@ if user_email:
                     min_rating = st.slider("Minimum rating", 1, 5, 1)
                 with col2:
                     search_query = st.text_input("Keyword")
-
                     reread_filter = st.selectbox("Reread filter", ["All", "Yes", "No", "Maybe"])
 
+                end_date = date.today()
+                start_date = end_date - timedelta(days=364) # date range inclusive of start and end dates
+                # Date range input
+                date_range = st.date_input(
+                    "Date Range",
+                    (start_date, end_date)
+                )
                 filters_submitted = st.form_submit_button("Apply Filters")
 
     if filters_submitted:
@@ -111,7 +124,6 @@ if user_email:
                 filtered_books = filtered_books[mask]
 
         # Rating
-        st.text(min_rating)
         filtered_books = filtered_books[
             (filtered_books["Rating /5"] >= min_rating) | filtered_books['Rating /5'].isna()
         ]
@@ -120,6 +132,14 @@ if user_email:
         if reread_filter != "All":
             filtered_books = filtered_books[filtered_books["Reread?"] == reread_filter]
 
+        # Date Range
+        filtered_books = filtered_books[
+            (pd.Timestamp(date_range[0]) <= pd.to_datetime(filtered_books['Date Read']))
+            &
+            (pd.to_datetime(filtered_books['Date Read']) <= pd.Timestamp(date_range[1]))
+        ]
+
+        st.text('Filtered results')
         st.dataframe(filtered_books)
 
     else:
